@@ -2,15 +2,21 @@ document.addEventListener("DOMContentLoaded", function () {
   const settingsForm = document.getElementById("settingsForm");
   const useTabsCheckbox = document.getElementById("useTabs");
   const gameContainer = document.getElementById("gameContainer");
-  const iframesContainer = document.getElementById("iframes");
   const instanceList = document.getElementById("instanceList");
   const tabPreviews = document.getElementById("tabPreviews");
+
+  const mousePositionElement = document.getElementById("mousePosition");
+  const mouseClickElement = document.getElementById("mouseClick");
+  const keyPressElement = document.getElementById("keyPress");
+  const mirroringInstanceElement = document.getElementById("mirroringInstance");
 
   let numInstances = 3;
   let instances = [];  // Array to hold instance names and other settings
   let currentInstanceIndex = 0;
   let tabs = []; // Store the window references for tabs
   let iframeMode = false; // Use iframe by default
+  let mouseX = 0, mouseY = 0;
+  let mouseDown = false;
 
   settingsForm.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -25,13 +31,12 @@ document.addEventListener("DOMContentLoaded", function () {
     instanceList.innerHTML = ''; // Reset instance list
     tabPreviews.innerHTML = ''; // Reset tab previews
 
-    iframesContainer.innerHTML = ''; // Clear existing iframes
     gameContainer.style.display = "flex"; // Show the game container
 
     // Create each instance
     for (let i = 0; i < instancesCount; i++) {
       const instanceName = prompt(`Enter name for Instance ${i + 1}`, `Instance ${i + 1}`);
-      instances.push({ name: instanceName, iframe: null, window: null });
+      instances.push({ name: instanceName, window: null });
 
       const instanceDiv = document.createElement("div");
       instanceDiv.classList.add("instance");
@@ -48,7 +53,7 @@ document.addEventListener("DOMContentLoaded", function () {
       instanceList.appendChild(instanceDiv);
     }
 
-    // Create iframes or tabs
+    // Create tabs or sub-windows
     if (useTabs) {
       // Open tabs for each instance
       for (let i = 0; i < instancesCount; i++) {
@@ -56,24 +61,17 @@ document.addEventListener("DOMContentLoaded", function () {
         tabs.push(newTab); // Store the reference to the tab
         instances[i].window = newTab;
 
-        // Create tab preview (a snapshot view of the tab)
-        const iframe = document.createElement("iframe");
-        iframe.src = "https://agar.io/#ffa";
-        iframe.id = `tab-preview-${i}`;
-        iframe.style.width = "200px";
-        iframe.style.height = "200px";
-        iframe.style.border = "1px solid #333";
-        tabPreviews.appendChild(iframe);
+        // Simulate tab preview using div
+        const tabPreview = document.createElement("div");
+        tabPreview.id = `tab-preview-${i}`;
+        tabPreview.classList.add("tabPreview");
+        tabPreview.style.width = "200px";
+        tabPreview.style.height = "200px";
+        tabPreview.innerHTML = `Tab ${i + 1} Preview`;
+        tabPreviews.appendChild(tabPreview);
       }
     } else {
-      // Create iframes
-      for (let i = 0; i < instancesCount; i++) {
-        const iframe = document.createElement("iframe");
-        iframe.src = "https://agar.io/#ffa";
-        iframe.id = `agar-instance-${i}`;
-        iframesContainer.appendChild(iframe);
-        instances[i].iframe = iframe;
-      }
+      // Use iframes if needed (not used in this case)
     }
 
     // Start syncing inputs if enabled
@@ -82,82 +80,85 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Record mouse and keyboard inputs
   function startRecordingInput() {
-    let mouseX, mouseY, mouseDown = false;
-
     document.addEventListener("mousemove", (event) => {
       mouseX = event.clientX;
       mouseY = event.clientY;
+      mousePositionElement.innerText = `X: ${mouseX}, Y: ${mouseY}`;
       recordMouseInput();
     });
 
     document.addEventListener("mousedown", () => {
       mouseDown = true;
+      mouseClickElement.innerText = "Mouse Down";
       recordMouseInput();
     });
 
     document.addEventListener("mouseup", () => {
       mouseDown = false;
+      mouseClickElement.innerText = "Mouse Up";
       recordMouseInput();
     });
 
     document.addEventListener("keydown", (event) => {
+      keyPressElement.innerText = `Key Pressed: ${event.key}`;
       recordKeyboardInput("keydown", event);
     });
 
     document.addEventListener("keyup", (event) => {
+      keyPressElement.innerText = `Key Pressed: ${event.key}`;
       recordKeyboardInput("keyup", event);
     });
-
-    function recordMouseInput() {
-      const event = {
-        type: "mousemove",
-        x: mouseX,
-        y: mouseY,
-        button: mouseDown ? 0 : 1,
-        timestamp: Date.now()
-      };
-      replayInput(event);
-    }
-
-    function recordKeyboardInput(type, event) {
-      const keyEvent = {
-        type: type,
-        key: event.key,
-        timestamp: Date.now()
-      };
-      replayInput(keyEvent);
-    }
   }
 
-  // Replay the recorded input to other tabs and iframes
+  // Record mouse and keyboard input and replay it
+  function recordMouseInput() {
+    const event = {
+      type: "mousemove",
+      x: mouseX,
+      y: mouseY,
+      button: mouseDown ? 0 : 1,
+      timestamp: Date.now()
+    };
+    replayInput(event);
+  }
+
+  function recordKeyboardInput(type, event) {
+    const keyEvent = {
+      type: type,
+      key: event.key,
+      timestamp: Date.now()
+    };
+    replayInput(keyEvent);
+  }
+
+  // Replay the recorded input to other tabs and windows
   function replayInput(event) {
-    // Replay mouse/keyboard input to all open instances
-    instances.forEach(instance => {
-      if (instance.iframe) {
-        const iframeDoc = instance.iframe.contentWindow.document;
-        dispatchEventToIframe(iframeDoc, event);
-      } else if (instance.window) {
+    instances.forEach((instance, index) => {
+      if (instance.window) {
         const tabDoc = instance.window.document;
-        dispatchEventToIframe(tabDoc, event);
+        dispatchEventToIframe(tabDoc, event, index);
       }
     });
   }
 
-  // Dispatch the event to a specific iframe or tab
-  function dispatchEventToIframe(iframeDoc, event) {
+  // Dispatch the event to a specific window or tab
+  function dispatchEventToIframe(windowDoc, event, index) {
+    let dispatchEvent;
     if (event.type === "mousemove") {
-      const mouseEvent = new MouseEvent("mousemove", {
+      dispatchEvent = new MouseEvent("mousemove", {
         clientX: event.x,
         clientY: event.y,
         button: event.button
       });
-      iframeDoc.dispatchEvent(mouseEvent);
     } else if (event.type === "keydown" || event.type === "keyup") {
-      const keyboardEvent = new KeyboardEvent(event.type, {
+      dispatchEvent = new KeyboardEvent(event.type, {
         key: event.key
       });
-      iframeDoc.dispatchEvent(keyboardEvent);
     }
+    windowDoc.dispatchEvent(dispatchEvent);
+
+    // Update the mirroring instance display
+    mirroringInstanceElement.innerText = `Mirroring to Instance ${index + 1} (${instances[index].name})`;
   }
 
   // Switch the active instance and bring it to the front
@@ -165,12 +166,9 @@ document.addEventListener("DOMContentLoaded", function () {
     currentInstanceIndex = index;
     const activeInstance = instances[index];
     
-    // Bring the main tab to focus
+    // Focus the active window/tab
     if (activeInstance.window) {
       activeInstance.window.focus();
-    }
-    if (activeInstance.iframe) {
-      activeInstance.iframe.focus();
     }
   }
 });
