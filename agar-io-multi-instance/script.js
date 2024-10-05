@@ -5,6 +5,9 @@ document.addEventListener("DOMContentLoaded", function () {
   let syncInput = true;
   let numInstances = 3;
   
+  // Queue to store the mouse and keyboard events
+  let inputQueue = [];
+
   settingsForm.addEventListener("submit", (event) => {
     event.preventDefault();
     numInstances = parseInt(document.getElementById("instances").value, 10);
@@ -17,62 +20,98 @@ document.addEventListener("DOMContentLoaded", function () {
     iframesContainer.innerHTML = "";
     gameContainer.style.display = "flex"; // Show the game container
 
-    // Create a new tab for each instance
+    // Create the specified number of iframes
     for (let i = 0; i < instances; i++) {
-      const gameWindow = window.open("https://agar.io/#ffa", `Agar.io Instance ${i + 1}`);
-      gameWindow.document.title = `Agar.io Instance ${i + 1}`;
+      const iframe = document.createElement("iframe");
+      iframe.src = "https://agar.io/#ffa";
+      iframe.id = `agar-instance-${i}`;
+      iframesContainer.appendChild(iframe);
+    }
 
-      // Sync the input if required
-      if (syncInput) {
-        syncInputAcrossInstances(gameWindow);
-      }
+    // Sync input across all instances if required
+    if (syncInput) {
+      startRecordingInput();
     }
   }
 
-  function syncInputAcrossInstances(gameWindow) {
+  function startRecordingInput() {
     let mouseX, mouseY, mouseDown = false;
 
     // Listen for mouse and keyboard inputs
     document.addEventListener("mousemove", (event) => {
       mouseX = event.clientX;
       mouseY = event.clientY;
-      propagateMouseEvent(gameWindow);
+      recordMouseInput();
     });
 
     document.addEventListener("mousedown", () => {
       mouseDown = true;
-      propagateMouseEvent(gameWindow);
+      recordMouseInput();
     });
 
     document.addEventListener("mouseup", () => {
       mouseDown = false;
-      propagateMouseEvent(gameWindow);
+      recordMouseInput();
     });
 
     document.addEventListener("keydown", (event) => {
-      // Pass keydown events to the opened game windows
-      propagateKeyboardEvent(gameWindow, "keydown", event);
+      // Record keydown event
+      recordKeyboardInput("keydown", event);
     });
 
     document.addEventListener("keyup", (event) => {
-      // Pass keyup events to the opened game windows
-      propagateKeyboardEvent(gameWindow, "keyup", event);
+      // Record keyup event
+      recordKeyboardInput("keyup", event);
     });
 
-    function propagateMouseEvent(gameWindow) {
-      gameWindow.postMessage({
+    function recordMouseInput() {
+      const event = {
         type: "mousemove",
         x: mouseX,
         y: mouseY,
-        button: mouseDown ? 0 : 1
-      }, "*");
+        button: mouseDown ? 0 : 1,
+        timestamp: Date.now()
+      };
+      inputQueue.push(event);
+      replayInput();
     }
 
-    function propagateKeyboardEvent(gameWindow, type, event) {
-      gameWindow.postMessage({
+    function recordKeyboardInput(type, event) {
+      const keyEvent = {
         type: type,
-        key: event.key
-      }, "*");
+        key: event.key,
+        timestamp: Date.now()
+      };
+      inputQueue.push(keyEvent);
+      replayInput();
     }
+  }
+
+  function replayInput() {
+    const iframes = document.querySelectorAll("iframe");
+    iframes.forEach((iframe) => {
+      const iframeDoc = iframe.contentWindow.document;
+
+      inputQueue.forEach((event) => {
+        if (event.type === "mousemove") {
+          const mouseEvent = new MouseEvent("mousemove", {
+            clientX: event.x,
+            clientY: event.y,
+            button: event.button
+          });
+          iframeDoc.dispatchEvent(mouseEvent);
+        } else if (event.type === "keydown") {
+          const keyboardEvent = new KeyboardEvent("keydown", {
+            key: event.key
+          });
+          iframeDoc.dispatchEvent(keyboardEvent);
+        } else if (event.type === "keyup") {
+          const keyboardEvent = new KeyboardEvent("keyup", {
+            key: event.key
+          });
+          iframeDoc.dispatchEvent(keyboardEvent);
+        }
+      });
+    });
   }
 });
