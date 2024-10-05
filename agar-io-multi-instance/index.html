@@ -13,11 +13,15 @@
       <label for="instances">Number of Instances:</label>
       <input type="number" id="instances" name="instances" min="1" max="10" value="3">
       <br><br>
-      <label for="syncInput">Sync Mouse and Keyboard Across All Instances:</label>
-      <input type="checkbox" id="syncInput" name="syncInput" checked>
+      
+      <label for="useTabs">Use Tabs Instead of Iframes:</label>
+      <input type="checkbox" id="useTabs" name="useTabs">
       <br><br>
+
       <input type="submit" value="Start Game">
     </form>
+
+    <div id="instanceList"></div>
   </div>
 
   <div id="gameContainer" style="display:none;">
