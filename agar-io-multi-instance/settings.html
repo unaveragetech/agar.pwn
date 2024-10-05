@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agar.io Multi-Instance Controller Settings</title>
+</head>
+<body>
+  <h1>Settings</h1>
+  <form id="settingsForm">
+    <label for="instances">Number of Instances:</label>
+    <input type="number" id="instances" name="instances" min="1" max="10" value="3">
+    <br><br>
+    <label for="syncInput">Sync Mouse and Keyboard Across All Instances:</label>
+    <input type="checkbox" id="syncInput" name="syncInput" checked>
+    <br><br>
+    <input type="submit" value="Start Game">
+  </form>
+
+  <script src="script.js"></script>
+</body>
+</html>
