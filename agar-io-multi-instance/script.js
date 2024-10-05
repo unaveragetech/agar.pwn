@@ -17,72 +17,62 @@ document.addEventListener("DOMContentLoaded", function () {
     iframesContainer.innerHTML = "";
     gameContainer.style.display = "flex"; // Show the game container
 
-    // Create the specified number of iframes
+    // Create a new tab for each instance
     for (let i = 0; i < instances; i++) {
-      const iframe = document.createElement("iframe");
-      iframe.src = "https://agar.io/#ffa";
-      iframe.id = `agar-instance-${i}`;
-      iframesContainer.appendChild(iframe);
-    }
+      const gameWindow = window.open("https://agar.io/#ffa", `Agar.io Instance ${i + 1}`);
+      gameWindow.document.title = `Agar.io Instance ${i + 1}`;
 
-    // Sync input across all instances if required
-    if (syncInput) {
-      syncInputAcrossInstances();
+      // Sync the input if required
+      if (syncInput) {
+        syncInputAcrossInstances(gameWindow);
+      }
     }
   }
 
-  function syncInputAcrossInstances() {
+  function syncInputAcrossInstances(gameWindow) {
     let mouseX, mouseY, mouseDown = false;
 
     // Listen for mouse and keyboard inputs
     document.addEventListener("mousemove", (event) => {
       mouseX = event.clientX;
       mouseY = event.clientY;
-      propagateMouseEvent();
+      propagateMouseEvent(gameWindow);
     });
 
     document.addEventListener("mousedown", () => {
       mouseDown = true;
-      propagateMouseEvent();
+      propagateMouseEvent(gameWindow);
     });
 
     document.addEventListener("mouseup", () => {
       mouseDown = false;
-      propagateMouseEvent();
+      propagateMouseEvent(gameWindow);
     });
 
     document.addEventListener("keydown", (event) => {
-      // Pass keydown events to all instances
-      propagateKeyboardEvent("keydown", event);
+      // Pass keydown events to the opened game windows
+      propagateKeyboardEvent(gameWindow, "keydown", event);
     });
 
     document.addEventListener("keyup", (event) => {
-      // Pass keyup events to all instances
-      propagateKeyboardEvent("keyup", event);
+      // Pass keyup events to the opened game windows
+      propagateKeyboardEvent(gameWindow, "keyup", event);
     });
 
-    function propagateMouseEvent() {
-      const iframes = document.querySelectorAll("iframe");
-      iframes.forEach((iframe) => {
-        const iframeDoc = iframe.contentWindow.document;
-        const mouseEvent = new MouseEvent("mousemove", {
-          clientX: mouseX,
-          clientY: mouseY,
-          button: mouseDown ? 0 : 1,
-        });
-        iframeDoc.dispatchEvent(mouseEvent);
-      });
+    function propagateMouseEvent(gameWindow) {
+      gameWindow.postMessage({
+        type: "mousemove",
+        x: mouseX,
+        y: mouseY,
+        button: mouseDown ? 0 : 1
+      }, "*");
     }
 
-    function propagateKeyboardEvent(type, event) {
-      const iframes = document.querySelectorAll("iframe");
-      iframes.forEach((iframe) => {
-        const iframeDoc = iframe.contentWindow.document;
-        const keyboardEvent = new KeyboardEvent(type, {
-          key: event.key,
-        });
-        iframeDoc.dispatchEvent(keyboardEvent);
-      });
+    function propagateKeyboardEvent(gameWindow, type, event) {
+      gameWindow.postMessage({
+        type: type,
+        key: event.key
+      }, "*");
     }
   }
 });
