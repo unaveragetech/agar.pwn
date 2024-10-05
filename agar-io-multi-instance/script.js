@@ -1,34 +1,71 @@
 document.addEventListener("DOMContentLoaded", function () {
   const settingsForm = document.getElementById("settingsForm");
+  const useTabsCheckbox = document.getElementById("useTabs");
   const gameContainer = document.getElementById("gameContainer");
   const iframesContainer = document.getElementById("iframes");
-  let syncInput = true;
-  let numInstances = 3;
+  const instanceList = document.getElementById("instanceList");
   
-  // Queue to store the mouse and keyboard events
-  let inputQueue = [];
+  let numInstances = 3;
+  let instances = [];  // Array to hold instance names and other settings
+  let currentInstanceIndex = 0;
+  let syncInput = true;
 
   settingsForm.addEventListener("submit", (event) => {
     event.preventDefault();
     numInstances = parseInt(document.getElementById("instances").value, 10);
-    syncInput = document.getElementById("syncInput").checked;
-    setupGameInstances(numInstances, syncInput);
+    syncInput = true; // We can always sync input across all instances
+    setupGameInstances(numInstances, syncInput, useTabsCheckbox.checked);
   });
 
-  function setupGameInstances(instances, syncInput) {
-    // Clear existing iframes
-    iframesContainer.innerHTML = "";
+  function setupGameInstances(instancesCount, syncInput, useTabs) {
+    // Reset instance data
+    instances = [];
+    instanceList.innerHTML = '';
+
+    // Clear existing iframes or tabs
+    iframesContainer.innerHTML = '';
     gameContainer.style.display = "flex"; // Show the game container
 
-    // Create the specified number of iframes
-    for (let i = 0; i < instances; i++) {
-      const iframe = document.createElement("iframe");
-      iframe.src = "https://agar.io/#ffa";
-      iframe.id = `agar-instance-${i}`;
-      iframesContainer.appendChild(iframe);
+    // Create inputs for each instance
+    for (let i = 0; i < instancesCount; i++) {
+      const instanceName = prompt(`Enter name for Instance ${i + 1}`, `Instance ${i + 1}`);
+      instances.push({ name: instanceName, iframe: null, window: null });
+
+      // Create buttons and a selection dropdown
+      const instanceDiv = document.createElement("div");
+      instanceDiv.classList.add("instance");
+
+      const instanceTitle = document.createElement("span");
+      instanceTitle.innerHTML = `${instanceName}: `;
+
+      const switchButton = document.createElement("button");
+      switchButton.innerHTML = "Switch to this Instance";
+      switchButton.onclick = () => switchInstance(i);
+
+      instanceDiv.appendChild(instanceTitle);
+      instanceDiv.appendChild(switchButton);
+      instanceList.appendChild(instanceDiv);
     }
 
-    // Sync input across all instances if required
+    // If we use tabs, open new tabs, otherwise create iframes
+    if (useTabs) {
+      for (let i = 0; i < instancesCount; i++) {
+        // Open a new tab for each instance
+        const newTab = window.open("https://agar.io/#ffa", `Agar.io Instance ${i + 1}`);
+        instances[i].window = newTab;
+      }
+    } else {
+      // Create iframes for each instance
+      for (let i = 0; i < instancesCount; i++) {
+        const iframe = document.createElement("iframe");
+        iframe.src = "https://agar.io/#ffa";
+        iframe.id = `agar-instance-${i}`;
+        iframesContainer.appendChild(iframe);
+        instances[i].iframe = iframe;
+      }
+    }
+
+    // Sync input across all instances
     if (syncInput) {
       startRecordingInput();
     }
@@ -37,7 +74,6 @@ document.addEventListener("DOMContentLoaded", function () {
   function startRecordingInput() {
     let mouseX, mouseY, mouseDown = false;
 
-    // Listen for mouse and keyboard inputs
     document.addEventListener("mousemove", (event) => {
       mouseX = event.clientX;
       mouseY = event.clientY;
@@ -55,12 +91,10 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     document.addEventListener("keydown", (event) => {
-      // Record keydown event
       recordKeyboardInput("keydown", event);
     });
 
     document.addEventListener("keyup", (event) => {
-      // Record keyup event
       recordKeyboardInput("keyup", event);
     });
 
@@ -72,8 +106,7 @@ document.addEventListener("DOMContentLoaded", function () {
         button: mouseDown ? 0 : 1,
         timestamp: Date.now()
       };
-      inputQueue.push(event);
-      replayInput();
+      replayInput(event);
     }
 
     function recordKeyboardInput(type, event) {
@@ -82,36 +115,40 @@ document.addEventListener("DOMContentLoaded", function () {
         key: event.key,
         timestamp: Date.now()
       };
-      inputQueue.push(keyEvent);
-      replayInput();
+      replayInput(keyEvent);
     }
   }
 
-  function replayInput() {
-    const iframes = document.querySelectorAll("iframe");
-    iframes.forEach((iframe) => {
-      const iframeDoc = iframe.contentWindow.document;
+  function replayInput(event) {
+    // Replay the recorded events to the current instance
+    const currentInstance = instances[currentInstanceIndex];
+    if (currentInstance.iframe) {
+      const iframeDoc = currentInstance.iframe.contentWindow.document;
+      dispatchEventToIframe(iframeDoc, event);
+    } else if (currentInstance.window) {
+      const tabDoc = currentInstance.window.document;
+      dispatchEventToIframe(tabDoc, event);
+    }
+  }
 
-      inputQueue.forEach((event) => {
-        if (event.type === "mousemove") {
-          const mouseEvent = new MouseEvent("mousemove", {
-            clientX: event.x,
-            clientY: event.y,
-            button: event.button
-          });
-          iframeDoc.dispatchEvent(mouseEvent);
-        } else if (event.type === "keydown") {
-          const keyboardEvent = new KeyboardEvent("keydown", {
-            key: event.key
-          });
-          iframeDoc.dispatchEvent(keyboardEvent);
-        } else if (event.type === "keyup") {
-          const keyboardEvent = new KeyboardEvent("keyup", {
-            key: event.key
-          });
-          iframeDoc.dispatchEvent(keyboardEvent);
-        }
+  function dispatchEventToIframe(iframeDoc, event) {
+    if (event.type === "mousemove") {
+      const mouseEvent = new MouseEvent("mousemove", {
+        clientX: event.x,
+        clientY: event.y,
+        button: event.button
       });
-    });
+      iframeDoc.dispatchEvent(mouseEvent);
+    } else if (event.type === "keydown" || event.type === "keyup") {
+      const keyboardEvent = new KeyboardEvent(event.type, {
+        key: event.key
+      });
+      iframeDoc.dispatchEvent(keyboardEvent);
+    }
+  }
+
+  function switchInstance(index) {
+    currentInstanceIndex = index;
+    console.log(`Switched to Instance ${index + 1}`);
   }
 });
