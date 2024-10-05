@@ -32,3 +32,17 @@ iframe {
 .instance {
   margin: 10px;
 }
+
+#tabPreviews {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+#tabPreviews iframe {
+  margin: 5px;
+  width: 200px;
+  height: 200px;
+  border: 1px solid #ccc;
+}
