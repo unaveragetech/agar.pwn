@@ -4,25 +4,26 @@ document.addEventListener("DOMContentLoaded", function () {
   const gameContainer = document.getElementById("gameContainer");
   const iframesContainer = document.getElementById("iframes");
   const instanceList = document.getElementById("instanceList");
+  const tabPreviews = document.getElementById("tabPreviews");
 
   let numInstances = 3;
   let instances = [];  // Array to hold instance names and other settings
   let currentInstanceIndex = 0;
-  let syncInput = true;
   let tabs = []; // Store the window references for tabs
   let iframeMode = false; // Use iframe by default
-  
+
   settingsForm.addEventListener("submit", (event) => {
     event.preventDefault();
     numInstances = parseInt(document.getElementById("instances").value, 10);
     iframeMode = !useTabsCheckbox.checked; // Decide on iframe vs tabs
-    setupGameInstances(numInstances, syncInput, iframeMode);
+    setupGameInstances(numInstances, iframeMode);
   });
 
   // Setup game instances in tabs or iframes
-  function setupGameInstances(instancesCount, syncInput, useTabs) {
+  function setupGameInstances(instancesCount, useTabs) {
     instances = [];
     instanceList.innerHTML = ''; // Reset instance list
+    tabPreviews.innerHTML = ''; // Reset tab previews
 
     iframesContainer.innerHTML = ''; // Clear existing iframes
     gameContainer.style.display = "flex"; // Show the game container
@@ -54,6 +55,15 @@ document.addEventListener("DOMContentLoaded", function () {
         const newTab = window.open("https://agar.io/#ffa", `Agar.io Instance ${i + 1}`);
         tabs.push(newTab); // Store the reference to the tab
         instances[i].window = newTab;
+
+        // Create tab preview (a snapshot view of the tab)
+        const iframe = document.createElement("iframe");
+        iframe.src = "https://agar.io/#ffa";
+        iframe.id = `tab-preview-${i}`;
+        iframe.style.width = "200px";
+        iframe.style.height = "200px";
+        iframe.style.border = "1px solid #333";
+        tabPreviews.appendChild(iframe);
       }
     } else {
       // Create iframes
@@ -67,9 +77,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // Start syncing inputs if enabled
-    if (syncInput) {
-      startRecordingInput();
-    }
+    startRecordingInput();
   }
 
   // Record mouse and keyboard inputs
