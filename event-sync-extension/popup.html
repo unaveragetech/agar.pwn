@@ -7,16 +7,132 @@
     <style>
         body { font-family: Arial, sans-serif; }
         button { padding: 10px 20px; margin: 5px; }
+        #statusOverlay {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            z-index: 1000;
+        }
     </style>
 </head>
 <body>
     <h2>Mouse Sync Extension</h2>
     <button id="toggleSync">Toggle Event Sync</button>
+    <div id="statusOverlay">Event Sync: OFF</div>
 
     <script>
+        let isSyncEnabled = false;
+
+        // Listen for the toggle button click to enable/disable event sync
         document.getElementById("toggleSync").addEventListener("click", function() {
-            // Add logic to enable or disable sync
-            alert("Sync toggled!");
+            isSyncEnabled = !isSyncEnabled;
+
+            // Update the overlay display and send sync status to all tabs
+            document.getElementById("statusOverlay").innerText = `Event Sync: ${isSyncEnabled ? "ON" : "OFF"}`;
+            toggleEventSync(isSyncEnabled);
+        });
+
+        // Function to toggle event sync across tabs
+        function toggleEventSync(enable) {
+            if (enable) {
+                startSyncingEvents();
+            } else {
+                stopSyncingEvents();
+            }
+        }
+
+        // Start syncing mouse and keyboard events
+        function startSyncingEvents() {
+            // Capture and broadcast mouse events
+            document.addEventListener("mousemove", broadcastMouseEvent);
+            document.addEventListener("mousedown", broadcastMouseEvent);
+            document.addEventListener("mouseup", broadcastMouseEvent);
+
+            // Capture and broadcast keyboard events
+            document.addEventListener("keydown", broadcastKeyboardEvent);
+            document.addEventListener("keyup", broadcastKeyboardEvent);
+
+            // Inform all other tabs that syncing is enabled
+            localStorage.setItem("syncEnabled", "true");
+        }
+
+        // Stop syncing mouse and keyboard events
+        function stopSyncingEvents() {
+            document.removeEventListener("mousemove", broadcastMouseEvent);
+            document.removeEventListener("mousedown", broadcastMouseEvent);
+            document.removeEventListener("mouseup", broadcastMouseEvent);
+
+            document.removeEventListener("keydown", broadcastKeyboardEvent);
+            document.removeEventListener("keyup", broadcastKeyboardEvent);
+
+            // Inform all other tabs that syncing is disabled
+            localStorage.setItem("syncEnabled", "false");
+        }
+
+        // Broadcast mouse events across tabs
+        function broadcastMouseEvent(event) {
+            if (isSyncEnabled) {
+                const mouseEvent = {
+                    type: event.type,
+                    clientX: event.clientX,
+                    clientY: event.clientY,
+                    button: event.button,
+                    timestamp: Date.now()
+                };
+                localStorage.setItem("mouseEvent", JSON.stringify(mouseEvent));
+            }
+        }
+
+        // Broadcast keyboard events across tabs
+        function broadcastKeyboardEvent(event) {
+            if (isSyncEnabled) {
+                const keyboardEvent = {
+                    type: event.type,
+                    key: event.key,
+                    timestamp: Date.now()
+                };
+                localStorage.setItem("keyboardEvent", JSON.stringify(keyboardEvent));
+            }
+        }
+
+        // Function to listen to localStorage changes and replay events
+        window.addEventListener("storage", function(event) {
+            if (event.key === "mouseEvent") {
+                const mouseEvent = JSON.parse(event.newValue);
+                replayMouseEvent(mouseEvent);
+            } else if (event.key === "keyboardEvent") {
+                const keyboardEvent = JSON.parse(event.newValue);
+                replayKeyboardEvent(keyboardEvent);
+            }
+        });
+
+        // Replay mouse events on this tab
+        function replayMouseEvent(event) {
+            const mouseEvent = new MouseEvent(event.type, {
+                clientX: event.clientX,
+                clientY: event.clientY,
+                button: event.button
+            });
+            document.dispatchEvent(mouseEvent);
+        }
+
+        // Replay keyboard events on this tab
+        function replayKeyboardEvent(event) {
+            const keyboardEvent = new KeyboardEvent(event.type, {
+                key: event.key
+            });
+            document.dispatchEvent(keyboardEvent);
+        }
+
+        // Show the sync status overlay on each tab based on stored sync state
+        window.addEventListener("load", function() {
+            const syncState = localStorage.getItem("syncEnabled") === "true" ? "ON" : "OFF";
+            document.getElementById("statusOverlay").innerText = `Event Sync: ${syncState}`;
         });
     </script>
 </body>
