@@ -1,15 +1,17 @@
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.message === 'broadcastEvent') {
-        // Get all open tabs with the same origin and broadcast event
-        chrome.tabs.query({url: "*://yourwebsite.com/*"}, function(tabs) {
-            tabs.forEach(tab => {
-                if (tab.id !== sender.tab.id) {
-                    chrome.tabs.sendMessage(tab.id, {
-                        message: 'replayEvent',
-                        event: request.event
-                    });
-                }
+let isSyncEnabled = false;
+
+// Listen for messages from the popup or content scripts
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.toggleSync !== undefined) {
+        isSyncEnabled = message.toggleSync;
+
+        // Broadcast the sync status to all open tabs
+        chrome.tabs.query({}, (tabs) => {
+            tabs.forEach((tab) => {
+                chrome.tabs.sendMessage(tab.id, { toggleSync: isSyncEnabled });
             });
         });
+
+        sendResponse({status: isSyncEnabled ? "on" : "off"});
     }
 });
