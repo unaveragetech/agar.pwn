@@ -131,35 +131,36 @@ document.addEventListener("DOMContentLoaded", function () {
     replayInput(keyEvent);
   }
 
-  // Replay the recorded input to other tabs and windows
+  // Replay the recorded input to other tabs and windows using postMessage
   function replayInput(event) {
-    instances.forEach((instance, index) => {
+    instances.forEach((instance) => {
       if (instance.window) {
-        const tabDoc = instance.window.document;
-        dispatchEventToIframe(tabDoc, event, index);
+        instance.window.postMessage(event, "*"); // Broadcast event to all tabs
       }
     });
   }
 
-  // Dispatch the event to a specific window or tab
-  function dispatchEventToIframe(windowDoc, event, index) {
+  // Listen for events in other tabs and replay them
+  window.addEventListener("message", (event) => {
+    if (event.origin !== window.origin) return; // Ensure the same origin
+    const receivedEvent = event.data;
+
     let dispatchEvent;
-    if (event.type === "mousemove") {
+    if (receivedEvent.type === "mousemove") {
       dispatchEvent = new MouseEvent("mousemove", {
-        clientX: event.x,
-        clientY: event.y,
-        button: event.button
+        clientX: receivedEvent.x,
+        clientY: receivedEvent.y,
+        button: receivedEvent.button
       });
-    } else if (event.type === "keydown" || event.type === "keyup") {
-      dispatchEvent = new KeyboardEvent(event.type, {
-        key: event.key
+    } else if (receivedEvent.type === "keydown" || receivedEvent.type === "keyup") {
+      dispatchEvent = new KeyboardEvent(receivedEvent.type, {
+        key: receivedEvent.key
       });
     }
-    windowDoc.dispatchEvent(dispatchEvent);
 
-    // Update the mirroring instance display
-    mirroringInstanceElement.innerText = `Mirroring to Instance ${index + 1} (${instances[index].name})`;
-  }
+    // Dispatch the event within this tab
+    document.dispatchEvent(dispatchEvent);
+  });
 
   // Switch the active instance and bring it to the front
   function switchInstance(index) {
