@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Cross-Tab Mouse Event Sync",
+  "description": "Syncs mouse events across all tabs with the same origin.",
+  "version": "1.0",
+  "permissions": ["tabs", "storage", "activeTab"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://yourwebsite.com/*"],
+      "js": ["content.js"]
+    }
+  ],
+  "host_permissions": [
+    "*://yourwebsite.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.png"
+  }
+}
